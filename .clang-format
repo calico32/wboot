@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://json.schemastore.org/clang-format
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 88
+AlignAfterOpenBracket: BlockIndent
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Empty
+BinPackArguments: true
+BreakFunctionDefinitionParameters: false
+AllowShortCaseLabelsOnASingleLine: true
+IndentCaseLabels: true
+BreakBinaryOperations: RespectPrecedence
+PenaltyBreakString: 100000
+PenaltyBreakAssignment: 200
