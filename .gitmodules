@@ -2,3 +2,9 @@
 	path = linux
 	url = git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 	branch = linux-6.19.y
+[submodule "gnu-efi"]
+	path = gnu-efi
+	url = https://github.com/ncroxon/gnu-efi.git
+[submodule "edk2"]
+	path = edk2
+	url = https://github.com/tianocore/edk2

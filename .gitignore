@@ -1,0 +1,10 @@
+# build artifacts
+*.EFI
+*.o
+
+# cache files
+/.vscode/.cache
+/.vscode/compile_commands.json
+
+# qemu runtime files
+/qemu

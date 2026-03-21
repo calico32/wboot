@@ -1,0 +1,5 @@
+CompileFlags:
+  CompilationDatabase: .vscode
+Diagnostics:
+  ClangTidy:
+    Add: [performance*, modernize*, readability*, bugprone*]
