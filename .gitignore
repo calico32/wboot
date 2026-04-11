@@ -8,3 +8,8 @@
 
 # qemu runtime files
 /qemu
+
+/vendor/bin
+/vendor/lib
+/vendor/include
+/vendor/share
