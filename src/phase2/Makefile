@@ -1,2 +1,2 @@
-BOOTX64.EFI: main.o boot.o ../shared/efiglobal.o ../shared/wstdlib.o
+BOOTX64.EFI: main.o wboot.o ../shared/efiglobal.o ../shared/wstdlib.o
 	$(CC) $(LDFLAGS) $(shell pkg-config --libs libzstd) -o $@ $^

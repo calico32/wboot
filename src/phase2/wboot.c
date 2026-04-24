@@ -1,8 +1,7 @@
 #include <zstd.h>
 
-#include "boot.h"
-#include "efidef.h"
 #include "efiglobal.h"
+#include "wboot.h"
 #include "wstdlib.h"
 
 EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *_device_path_to_text;
@@ -17,7 +16,9 @@ EFI_STATUS _get_device_path_to_text() {
 }
 
 EFI_STATUS
-kernel_locate(EFI_FILE_PROTOCOL **kernel_file, EFI_FILE_PROTOCOL **initramfs_file) {
+wboot_locate_kernel(
+    EFI_FILE_PROTOCOL **kernel_file, EFI_FILE_PROTOCOL **initramfs_file
+) {
     EFI_STATUS status = EFI_SUCCESS;
 
     printf(L"Locating kernel...\r\n");
@@ -106,7 +107,8 @@ kernel_locate(EFI_FILE_PROTOCOL **kernel_file, EFI_FILE_PROTOCOL **initramfs_fil
     return EFI_NOT_FOUND;
 }
 
-EFI_STATUS kernel_read_header(EFI_FILE_PROTOCOL *kernel_file, setup_header_t *header) {
+EFI_STATUS
+wboot_read_setup_header(EFI_FILE_PROTOCOL *kernel_file, setup_header_t *header) {
     EFI_STATUS status;
     UINTN bytes_read = sizeof(setup_header_t);
 
@@ -152,7 +154,7 @@ EFI_STATUS kernel_read_header(EFI_FILE_PROTOCOL *kernel_file, setup_header_t *he
     return EFI_SUCCESS;
 }
 
-VOID kernel_dump_header(const setup_header_t *header) {
+VOID wboot_dump_setup_header(const setup_header_t *header) {
     printf(L"Kernel header:\r\n");
     printf(L"  setup_sects: %u\r\n", (UINTN)header->setup_sects);
     printf(L"  root_flags: 0x%x\r\n", (UINTN)header->root_flags);
@@ -200,7 +202,7 @@ VOID kernel_dump_header(const setup_header_t *header) {
 
 static ZSTD_DCtx *dctx;
 
-EFI_STATUS kernel_decompress(
+EFI_STATUS wboot_decompress_kernel(
     const setup_header_t *header, EFI_FILE_PROTOCOL *kernel_file,
     VOID **decompressed_kernel, UINTN *decompressed_kernel_size
 ) {
@@ -370,7 +372,7 @@ EFI_STATUS kernel_decompress(
     return EFI_SUCCESS;
 }
 
-EFI_STATUS initramfs_load(
+EFI_STATUS wboot_load_initramfs(
     EFI_FILE_PROTOCOL *initramfs_file, VOID **initramfs, UINTN *initramfs_size
 ) {
     EFI_STATUS status;

@@ -1,5 +1,5 @@
-#include "boot.h"
 #include "efiglobal.h"
+#include "wboot.h"
 #include "wstdlib.h"
 
 EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
@@ -10,7 +10,7 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
 
     EFI_FILE_PROTOCOL *kernel_file;
     EFI_FILE_PROTOCOL *initramfs_file;
-    status = kernel_locate(&kernel_file, &initramfs_file);
+    status = wboot_locate_kernel(&kernel_file, &initramfs_file);
     if (EFI_ERROR(status)) {
         goto exit;
     }
@@ -46,12 +46,12 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
     printf(L"Initramfs file size: %u bytes\r\n", file_info->FileSize);
 
     setup_header_t header;
-    status = kernel_read_header(kernel_file, &header);
+    status = wboot_read_setup_header(kernel_file, &header);
     if (EFI_ERROR(status)) {
         goto exit;
     }
 
-    kernel_dump_header(&header);
+    wboot_dump_setup_header(&header);
 
     status = BS->FreePool(file_info);
     if (EFI_ERROR(status)) {
@@ -61,7 +61,7 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
 
     VOID *decompressed_kernel;
     UINTN decompressed_kernel_size;
-    status = kernel_decompress(
+    status = wboot_decompress_kernel(
         &header, kernel_file, &decompressed_kernel, &decompressed_kernel_size
     );
     if (EFI_ERROR(status)) {
@@ -72,7 +72,7 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
 
     VOID *initramfs;
     UINTN initramfs_size;
-    status = initramfs_load(initramfs_file, &initramfs, &initramfs_size);
+    status = wboot_load_initramfs(initramfs_file, &initramfs, &initramfs_size);
     if (EFI_ERROR(status)) {
         goto exit;
     }
