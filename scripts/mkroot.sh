@@ -10,7 +10,7 @@ fi
 ROOTIMG=$1
 
 touch $ROOTIMG
-truncate -s 4G $ROOTIMG
+truncate -s 16G $ROOTIMG
 
 sfdisk $ROOTIMG <<EOF
 label: gpt

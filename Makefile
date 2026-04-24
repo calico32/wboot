@@ -64,6 +64,8 @@ UEFI_DEBUG_LOG := qemu/uefi_debug.log
 ESP_DIR := qemu/esp
 ROOTIMG := $(PWD)/qemu/root.img
 ROOT := $(PWD)/qemu/root
+VCPUS ?= $(shell nproc)
+QEMU_CPU ?= host
 
 ovmf: export WORKSPACE := $(PWD)/vendor/edk2
 ovmf: export EDK_TOOLS_PATH := $(PWD)/vendor/edk2/BaseTools
@@ -85,10 +87,11 @@ root:
 	$(MAKE) root-install
 	$(MAKE) root-chpasswd
 	$(MAKE) root-genfstab
+	$(MAKE) root-services
 	./scripts/unmount.sh $(ROOT) $(ESP_DIR)
 
 root-install:
-	sudo pacstrap -K -c $(ROOT) base base-devel linux linux-firmware vim neovim
+	sudo pacstrap -K -c $(ROOT) base base-devel linux linux-firmware vim neovim networkmanager gnome gdm
 
 root-chpasswd:
 	sudo arch-chroot $(ROOT) /bin/bash -c "echo 'root:root' | chpasswd"
@@ -96,21 +99,26 @@ root-chpasswd:
 root-genfstab:
 	echo "/dev/vda2 / ext4 defaults 0 1" | sudo tee -a $(ROOT)/etc/fstab
 
+root-services:
+	sudo arch-chroot $(ROOT) /bin/bash -c "systemctl enable NetworkManager systemd-resolved"
+	sudo arch-chroot $(ROOT) /bin/bash -c "systemctl enable gdm"
+
 mount:
 	./scripts/mount.sh $(ROOTIMG) $(ROOT) $(ESP_DIR)
 
 unmount:
 	./scripts/unmount.sh $(ROOT) $(ESP_DIR)
 
-QEMUFLAGS := -cpu max \
+QEMUFLAGS := -machine q35,accel=kvm:tcg,kernel-irqchip=on \
+	-cpu $(QEMU_CPU) \
+	-smp $(VCPUS) \
 	-drive if=pflash,format=raw,unit=0,file=$(FIRMWARE_DIR)/OVMF_CODE.fd,readonly=on \
 	-drive if=pflash,format=raw,unit=1,file=$(FIRMWARE_DIR)/OVMF_VARS.fd \
 	-debugcon file:$(UEFI_DEBUG_LOG) -global isa-debugcon.iobase=0x402 \
-	-drive if=virtio,format=raw,file=$(ROOTIMG) \
-	-net none \
-	-m 4G \
-	-serial stdio \
-	-display none
+	-drive if=virtio,format=raw,file=$(ROOTIMG),cache=none,aio=native,discard=unmap,detect-zeroes=unmap \
+	-m 8G \
+	-netdev user,id=net0 -device virtio-net-pci,netdev=net0 \
+	-serial stdio
 
 run: src/$(TARGET)/BOOTX64.EFI
 	sudo mkdir -p $(ESP_DIR)/EFI/BOOT

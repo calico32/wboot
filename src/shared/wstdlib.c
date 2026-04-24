@@ -7,6 +7,12 @@
 #include "string.h"
 #include "wstdlib.h"
 
+static UINT8 _bs_exited;
+
+void wstdlib_bs_exited() {
+    _bs_exited = 1;
+}
+
 #define _PRINTF_BUFFER_SIZE 1024
 CHAR16 _printf_buffer[_PRINTF_BUFFER_SIZE];
 UINTN _printf_buffer_pos = 0;
@@ -19,12 +25,29 @@ static inline UINTN _strlen(const CHAR16 *str) {
     return len;
 }
 
+static inline uint8_t inb(uint16_t port) {
+    uint8_t val;
+    asm volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
+    return val;
+}
+
+static inline void outb(uint16_t port, uint8_t val) {
+    asm volatile("outb %0, %1" ::"a"(val), "Nd"(port));
+}
+
+#define COM1 0x3F8
+
+static inline void serial_putc(char c) {
+    // Wait for transmit buffer empty
+    while (!(inb(COM1 + 5) & 0x20)) {}
+    outb(COM1, c);
+}
+
 static inline VOID _printf_flush() {
-    if (_printf_buffer_pos > 0) {
-        _printf_buffer[_printf_buffer_pos] = L'\0';
-        ST->ConOut->OutputString(ST->ConOut, _printf_buffer);
-        _printf_buffer_pos = 0;
+    for (UINTN i = 0; i < _printf_buffer_pos; i++) {
+        serial_putc((char)_printf_buffer[i]);
     }
+    _printf_buffer_pos = 0;
 }
 
 static inline VOID _printf_write(const CHAR16 *str) {
@@ -184,6 +207,11 @@ EFI_STATUS printf(const CHAR16 *format, ...) {
 }
 
 CHAR16 read_char() {
+    if (_bs_exited) {
+        // read from serial port
+        while (!(inb(0x64) & 0x1)) {}
+        return (CHAR16)inb(0x60);
+    }
     EFI_INPUT_KEY key;
     BS->WaitForEvent(1, &ST->ConIn->WaitForKey, NULL);
     while (ST->ConIn->ReadKeyStroke(ST->ConIn, &key) == EFI_NOT_READY) {}
@@ -349,6 +377,11 @@ VOID dump_memory_map() {
 }
 
 void *malloc(size_t size) {
+    if (_bs_exited) {
+        printf(L"    [wstdlib] BUG: malloc called after exiting boot services\r\n");
+        _errno = EFI_OUT_OF_RESOURCES;
+        return NULL;
+    }
     void *ptr = NULL;
     EFI_STATUS status = BS->AllocatePool(EfiLoaderData, size, &ptr);
     if (EFI_ERROR(status)) {
@@ -359,6 +392,10 @@ void *malloc(size_t size) {
 }
 
 void free(void *ptr) {
+    if (_bs_exited) {
+        printf(L"    [wstdlib] BUG: free called after exiting boot services\r\n");
+        return;
+    }
     if (ptr) {
         _errno = BS->FreePool(ptr);
     }

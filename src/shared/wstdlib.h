@@ -9,6 +9,10 @@
 #include "string.h" // IWYU pragma: keep
 #include <efi.h>
 
+// Call immediately after exiting boot services to prevent any further calls to
+// UEFI boot services functions by wstdlib functions.
+void wstdlib_bs_exited();
+
 EFI_STATUS *_errno_location();
 
 #define errno (*_errno_location())

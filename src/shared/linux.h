@@ -1,3 +1,5 @@
+#pragma once
+
 #include "efi.h" // IWYU pragma: keep
 
 #pragma pack(push, 1)
@@ -269,33 +271,133 @@ typedef struct {
 } __attribute__((packed)) setup_header_t;
 
 #define E820_MAX_ENTRIES_ZEROPAGE 128
+#define EFI_MMAP_NR_SLACK_SLOTS 32
+
+typedef enum {
+    E820_TYPE_RAM = 1,
+    E820_TYPE_RESERVED = 2,
+    E820_TYPE_ACPI = 3,
+    E820_TYPE_NVS = 4,
+    E820_TYPE_UNUSABLE = 5,
+    E820_TYPE_PMEM = 7,
+    E820_TYPE_PRAM = 12,
+} e820_type_t;
+
+_Static_assert(sizeof(e820_type_t) == 4, "e820_type_t must be 4 bytes in size");
 
 typedef struct {
     UINT64 addr;
     UINT64 size;
-    UINT32 type;
+    e820_type_t type;
 } __attribute__((packed)) boot_e820_entry_t;
 
+#define SETUP_E820_EXT 1
+
 typedef struct {
-    UINT8 _pad1[0x0c0];
+    UINT64 next;
+    UINT32 type;
+    UINT32 len;
+    UINT8 data[];
+} __attribute__((packed)) setup_data_t;
+
+typedef struct {
+    UINT32 efi_loader_signature;
+    UINT32 efi_systab;
+    UINT32 efi_memdesc_size;
+    UINT32 efi_memdesc_version;
+    UINT32 efi_memmap;
+    UINT32 efi_memmap_size;
+    UINT32 efi_systab_hi;
+    UINT32 efi_memmap_hi;
+} __attribute__((packed)) efi_info_t;
+
+typedef struct {
+    UINT8 orig_x;
+    UINT8 orig_y;
+    UINT16 ext_mem_k;
+    UINT16 orig_video_page;
+    UINT8 orig_video_mode;
+    UINT8 orig_video_cols;
+    UINT8 flags;
+    UINT8 unused2;
+    UINT16 orig_video_ega_bx;
+    UINT16 unused3;
+    UINT8 orig_video_lines;
+    UINT8 orig_video_isVGA;
+    UINT16 orig_video_points;
+    UINT16 lfb_width;
+    UINT16 lfb_height;
+    UINT16 lfb_depth;
+    UINT32 lfb_base;
+    UINT32 lfb_size;
+    UINT16 cl_magic, cl_offset;
+    UINT16 lfb_linelength;
+    UINT8 red_size;
+    UINT8 red_pos;
+    UINT8 green_size;
+    UINT8 green_pos;
+    UINT8 blue_size;
+    UINT8 blue_pos;
+    UINT8 rsvd_size;
+    UINT8 rsvd_pos;
+    UINT16 vesapm_seg;
+    UINT16 vesapm_off;
+    UINT16 pages;
+    UINT16 vesa_attributes;
+    UINT32 capabilities;
+    UINT32 ext_lfb_base;
+    UINT8 _reserved[2];
+} __attribute__((packed)) screen_info_t;
+
+typedef struct {
+    CHAR8 dummy[128];
+} __attribute__((packed)) edid_info_t;
+
+#define VIDEO_TYPE_MDA 0x10           /* Monochrome Text Display	*/
+#define VIDEO_TYPE_CGA 0x11           /* CGA Display 			*/
+#define VIDEO_TYPE_EGAM 0x20          /* EGA/VGA in Monochrome Mode	*/
+#define VIDEO_TYPE_EGAC 0x21          /* EGA in Color Mode		*/
+#define VIDEO_TYPE_VGAC 0x22          /* VGA+ in Color Mode		*/
+#define VIDEO_TYPE_VLFB 0x23          /* VESA VGA in graphic mode	*/
+#define VIDEO_TYPE_PICA_S3 0x30       /* ACER PICA-61 local S3 video	*/
+#define VIDEO_TYPE_MIPS_G364 0x31     /* MIPS Magnum 4000 G364 video  */
+#define VIDEO_TYPE_SGI 0x33           /* Various SGI graphics hardware */
+#define VIDEO_TYPE_TGAC 0x40          /* DEC TGA */
+#define VIDEO_TYPE_SUN 0x50           /* Sun frame buffer. */
+#define VIDEO_TYPE_SUNPCI 0x51        /* Sun PCI based frame buffer. */
+#define VIDEO_TYPE_PMAC 0x60          /* PowerMacintosh frame buffer. */
+#define VIDEO_TYPE_EFI 0x70           /* EFI graphic mode		*/
+#define VIDEO_FLAGS_NOCURSOR (1 << 0) /* The video mode has no cursor set */
+#define VIDEO_CAPABILITY_SKIP_QUIRKS (1 << 0)
+#define VIDEO_CAPABILITY_64BIT_BASE (1 << 1) /* Frame buffer base is 64-bit */
+
+typedef struct {
+    screen_info_t screen_info;
+
+    UINT8 _pad1[0x0c0 - 0 - sizeof(screen_info_t)];
 
     UINT32 ext_ramdisk_image;
     UINT32 ext_ramdisk_size;
     UINT32 ext_cmd_line_ptr;
 
-    UINT8 _pad2[0x1e8 - 0x0c0 - 12];
+    UINT8 _pad2[0x140 - 0x0c0 - 12];
+
+    edid_info_t edid_info;
+    efi_info_t efi_info;
+
+    UINT8 _pad3[0x1e8 - 0x1c0 - sizeof(efi_info_t)];
 
     UINT8 e820_entries;
 
-    UINT8 _pad3[0x1f1 - 0x1e8 - 1];
+    UINT8 _pad4[0x1f1 - 0x1e8 - 1];
 
     setup_header_t hdr;
 
-    UINT8 _pad4[0x2d0 - 0x1f1 - sizeof(setup_header_t)];
+    UINT8 _pad5[0x2d0 - 0x1f1 - sizeof(setup_header_t)];
 
     boot_e820_entry_t e820_table[E820_MAX_ENTRIES_ZEROPAGE];
 
-    UINT8 _pad5[4096 - 0x2d0 - (sizeof(boot_e820_entry_t) * E820_MAX_ENTRIES_ZEROPAGE)];
+    UINT8 _pad6[4096 - 0x2d0 - (sizeof(boot_e820_entry_t) * E820_MAX_ENTRIES_ZEROPAGE)];
 } __attribute__((packed)) boot_params_t;
 
 _Static_assert(
