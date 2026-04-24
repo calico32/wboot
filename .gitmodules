@@ -1,8 +1,8 @@
 [submodule "gnu-efi"]
-	path = gnu-efi
+	path = vendor/gnu-efi
 	url = https://github.com/ncroxon/gnu-efi.git
 [submodule "edk2"]
-	path = edk2
+	path = vendor/edk2
 	url = https://github.com/tianocore/edk2
 [submodule "vendor/zstd"]
 	path = vendor/zstd

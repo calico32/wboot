@@ -14,9 +14,9 @@ CFLAGS := -target x86_64-unknown-windows \
 	-I$(PWD)/src/shared \
 	-I$(PWD)/vendor/shim \
 	-I$(PWD)/vendor/include \
-	-I$(PWD)/gnu-efi/inc \
-	-I$(PWD)/gnu-efi/inc/x86_64 \
-	-I$(PWD)/gnu-efi/inc/protocol
+	-I$(PWD)/vendor/gnu-efi/inc \
+	-I$(PWD)/vendor/gnu-efi/inc/x86_64 \
+	-I$(PWD)/vendor/gnu-efi/inc/protocol
 
 LDFLAGS := -target x86_64-unknown-windows \
 	-nostdlib \
@@ -24,7 +24,7 @@ LDFLAGS := -target x86_64-unknown-windows \
 	-Wl,-subsystem:efi_application \
 	-fuse-ld=lld-link
 
-TARGET := phase2
+TARGET := phase3
 
 %/BOOTX64.EFI: export PKG_CONFIG_PATH := $(PWD)/vendor/lib/pkgconfig
 %/BOOTX64.EFI:
@@ -65,17 +65,17 @@ ESP_DIR := qemu/esp
 ROOTIMG := $(PWD)/qemu/root.img
 ROOT := $(PWD)/qemu/root
 
-ovmf: export WORKSPACE := $(PWD)/edk2
-ovmf: export EDK_TOOLS_PATH := $(PWD)/edk2/BaseTools
-ovmf: export CONF_PATH := $(PWD)/edk2/Conf
-ovmf: export PATH := "$(PATH):$(PWD)/edk2/BaseTools/BinWrappers/PosixLike"
+ovmf: export WORKSPACE := $(PWD)/vendor/edk2
+ovmf: export EDK_TOOLS_PATH := $(PWD)/vendor/edk2/BaseTools
+ovmf: export CONF_PATH := $(PWD)/vendor/edk2/Conf
+ovmf: export PATH := "$(PATH):$(PWD)/vendor/edk2/BaseTools/BinWrappers/PosixLike"
 ovmf:
 	git submodule update --init
-	cd edk2 && \
+	cd vendor/edk2 && \
 		git submodule update --init && \
 		PATH=${PATH} build -a X64 -t GCC -p OvmfPkg/OvmfPkgX64.dsc -b DEBUG
 	mkdir -p $(FIRMWARE_DIR)
-	cp edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF_*.fd $(FIRMWARE_DIR)
+	cp vendor/edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF_*.fd $(FIRMWARE_DIR)
 
 root:
 	@printf "Are you sure? Erasing $(ROOTIMG) and creating a new root filesystem. [y/N] "

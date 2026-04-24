@@ -1,12 +1,17 @@
 {
-	"biome.enabled": false,
+    "biome.enabled": false,
     "explorer.autoRevealExclude": {
-        "**/gnu-efi": true,
-        "**/linux": true
+        "gnu-efi": true,
+        "linux": true
     },
     "files.exclude": {
-        "**/src/**/*.o": true,
+        "src/**/*.o": true
     },
     "mesonbuild.configureOnOpen": false,
     "git.autoRepositoryDetection": false,
+    "files.readonlyInclude": {
+        "vendor/gnu-efi/**/*": true,
+        "vendor/edk2/**/*": true,
+        "vendor/linux/**/*": true
+    }
 }
