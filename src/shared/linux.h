@@ -283,7 +283,7 @@ typedef struct {
     UINT32 ext_ramdisk_size;
     UINT32 ext_cmd_line_ptr;
 
-    UINT8 _pad2[0x1e8 - 0x0c8 - 4];
+    UINT8 _pad2[0x1e8 - 0x0c0 - 12];
 
     UINT8 e820_entries;
 
