@@ -109,6 +109,24 @@ mount:
 unmount:
 	./scripts/unmount.sh $(ROOT) $(ESP_DIR)
 
+root-fsck-check:
+	@set -e; \
+	loopdev=$$(sudo losetup --find --show --partscan $(ROOTIMG)); \
+	echo "Using $$loopdev"; \
+	status=0; \
+	sudo e2fsck -f -n $${loopdev}p2 || status=$$?; \
+	sudo losetup -d $$loopdev; \
+	exit $$status
+
+root-fsck-repair:
+	@set -e; \
+	loopdev=$$(sudo losetup --find --show --partscan $(ROOTIMG)); \
+	echo "Using $$loopdev"; \
+	status=0; \
+	sudo e2fsck -f -y $${loopdev}p2 || status=$$?; \
+	sudo losetup -d $$loopdev; \
+	if [ $$status -gt 1 ]; then exit $$status; fi
+
 QEMUFLAGS := -machine q35,accel=kvm:tcg,kernel-irqchip=on \
 	-cpu $(QEMU_CPU) \
 	-smp $(VCPUS) \
@@ -123,6 +141,7 @@ QEMUFLAGS := -machine q35,accel=kvm:tcg,kernel-irqchip=on \
 run: src/$(TARGET)/BOOTX64.EFI
 	sudo mkdir -p $(ESP_DIR)/EFI/BOOT
 	sudo cp src/$(TARGET)/BOOTX64.EFI $(ESP_DIR)/EFI/BOOT/BOOTX64.EFI
+	sudo cp wboot.conf $(ESP_DIR)
 # wait for the file to be fully written before starting QEMU, otherwise OVMF might try to read it before it's done writing and fail to boot
 	sync
 	@truncate -s 0 $(UEFI_DEBUG_LOG)
@@ -136,4 +155,4 @@ run-direct:
 		-initrd qemu/root/boot/initramfs-linux.img \
 		-append "rw root=/dev/vda2 console=ttyS0"
 
-.PHONY: cc clean run ovmf root mount unmount zstd
+.PHONY: cc clean run ovmf root mount unmount zstd root-fsck-check root-fsck-repair

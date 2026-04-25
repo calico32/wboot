@@ -1,7 +1,9 @@
 #include "wboot_graphics.h"
+#include "efidef.h"
 #include "efiglobal.h"
 #include "efiprot.h"
 #include "linux.h"
+#include "wboot_config.h"
 #include "wstdlib.h" // IWYU pragma: keep
 
 static UINT32 min(UINT32 a, UINT32 b) {
@@ -166,8 +168,11 @@ struct match {
 };
 
 static UINT32 choose_mode(
-    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop,
-    UINT8 (*match)(const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *, UINT32, void *),
+    const wboot_config_t *config, EFI_GRAPHICS_OUTPUT_PROTOCOL *gop,
+    UINT8 (*match)(
+        const wboot_config_t *, const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *, UINT32,
+        void *
+    ),
     void *ctx
 ) {
     EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode = gop->Mode;
@@ -183,7 +188,7 @@ static UINT32 choose_mode(
             continue;
         }
 
-        if (match(info, m, ctx)) {
+        if (match(config, info, m, ctx)) {
             return m;
         }
     }
@@ -191,8 +196,10 @@ static UINT32 choose_mode(
     return (UINT32)(UINT64)ctx;
 }
 
-static UINT8
-match_auto(const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info, UINT32 mode, void *ctx) {
+static UINT8 match_auto(
+    const wboot_config_t *config, const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info,
+    UINT32 mode, void *ctx
+) {
     UINT32 area = info->HorizontalResolution * info->VerticalResolution;
     EFI_PIXEL_BITMASK pi = info->PixelInformation;
     int pf = info->PixelFormat;
@@ -210,21 +217,19 @@ match_auto(const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info, UINT32 mode, void *
     return 0;
 }
 
-static UINT32 choose_mode_auto(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
+static UINT32
+choose_mode_auto(const wboot_config_t *config, EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
     struct match match = {};
 
-    choose_mode(gop, match_auto, &match);
+    choose_mode(config, gop, match_auto, &match);
 
     return match.mode;
 }
 
-static const UINT32 res_width = 1024;
-static const UINT32 res_height = 768;
-static const UINT32 res_format = -1;
-static const UINT32 res_depth = 0;
-
-static UINT8
-match_res(const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info, UINT32 mode, void *ctx) {
+static UINT8 match_res(
+    const wboot_config_t *config, const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info,
+    UINT32 mode, void *ctx
+) {
     EFI_PIXEL_BITMASK pi = info->PixelInformation;
     int pf = info->PixelFormat;
 
@@ -237,26 +242,27 @@ match_res(const EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info, UINT32 mode, void *c
     //     info->HorizontalResolution, info->VerticalResolution, pf, pixel_bpp(pf, pi)
     // );
 
-    return res_width == info->HorizontalResolution &&
-           res_height == info->VerticalResolution &&
-           (res_format < 0 || res_format == pf) &&
-           (!res_depth || res_depth == pixel_bpp(pf, pi));
+    return config->mode_width == info->HorizontalResolution &&
+           config->mode_height == info->VerticalResolution &&
+           (config->mode_format < 0 || config->mode_format == pf) &&
+           (!config->mode_depth || config->mode_depth == pixel_bpp(pf, pi));
 }
 
-static UINT32 choose_mode_res(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
+static UINT32
+choose_mode_res(const wboot_config_t *config, EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
     EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode = gop->Mode;
     UINT32 cur_mode = mode->Mode;
 
-    if (match_res(mode->Info, cur_mode, NULL)) {
+    if (match_res(config, mode->Info, cur_mode, NULL)) {
         return cur_mode;
     }
 
-    return choose_mode(gop, match_res, (void *)(UINT64)cur_mode);
+    return choose_mode(config, gop, match_res, (void *)(UINT64)cur_mode);
 }
 
-static void set_mode(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
+static void set_mode(const wboot_config_t *config, EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
     UINT32 cur_mode = gop->Mode->Mode;
-    UINT32 new_mode = choose_mode_res(gop);
+    UINT32 new_mode = choose_mode_res(config, gop);
 
     if (new_mode == cur_mode) {
         return;
@@ -271,7 +277,8 @@ static void set_mode(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop) {
     }
 }
 
-EFI_STATUS wboot_setup_graphics(boot_params_t *boot_params) {
+EFI_STATUS
+wboot_setup_graphics(const wboot_config_t *config, boot_params_t *boot_params) {
     screen_info_t *si = memset(&boot_params->screen_info, 0, sizeof(*si));
     edid_info_t *edid = memset(&boot_params->edid_info, 0, sizeof(*edid));
 
@@ -293,7 +300,7 @@ EFI_STATUS wboot_setup_graphics(boot_params_t *boot_params) {
         return EFI_NOT_FOUND;
     }
 
-    set_mode(gop);
+    set_mode(config, gop);
 
     if (si) {
         setup_screen_info(si, gop);

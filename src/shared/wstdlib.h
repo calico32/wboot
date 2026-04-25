@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "efibind.h"
 #include "stdlib.h" // IWYU pragma: keep
 #include "string.h" // IWYU pragma: keep
 #include <efi.h>
@@ -48,10 +49,17 @@ VOID perror(const CHAR16 *message, EFI_STATUS status);
 // negative value if str1 < str2, and a positive value if str1 > str2.
 INTN strcmp(const CHAR16 *str1, const CHAR16 *str2);
 
+// Compares two null-terminated strings. Returns 0 if the strings are equal, a
+// negative value if str1 < str2, and a positive value if str1 > str2.
+INTN strcmp8(const CHAR8 *str1, const CHAR8 *str2);
+
 // Compares up to n characters of two null-terminated strings. Returns 0 if the
 // strings are equal, a negative value if str1 < str2, and a positive value if
 // str1 > str2.
 INTN strncmp(const CHAR16 *str1, const CHAR16 *str2, UINTN n);
 
-// Debug prints the EFI memory map to the console.
-VOID dump_memory_map();
+CHAR8 *strchr(const CHAR8 *str, CHAR8 c);
+CHAR8 *strtok_r(CHAR8 *str, const CHAR8 *delim, CHAR8 **saveptr);
+UINTN strtoul(const CHAR8 *str, CHAR8 **endptr, int base);
+UINTN strlen8(const CHAR8 *str);
+CHAR8 *strdup8(const CHAR8 *src);

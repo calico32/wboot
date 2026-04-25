@@ -1,5 +1,6 @@
 #include "efiglobal.h"
 #include "wboot.h"
+#include "wboot_config.h"
 #include "wboot_graphics.h"
 #include "wstdlib.h"
 
@@ -13,57 +14,39 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
     BS = ST->BootServices;
 
     printf(logo);
-    printf(L"[wboot] Hello from wboot!\r\n");
+    printf(L"[wboot] hello from wboot!\r\n");
 
+    printf(L"[wboot] locating config...\r\n");
+
+    wboot_config_t *config;
+    status = wboot_locate_config(&config);
+    if (EFI_ERROR(status)) {
+        goto exit;
+    }
+
+    printf(L"[wboot] config kernel = %s\r\n", config->kernel_path);
+    printf(L"[wboot] config initrd = %s\r\n", config->initrd_path);
+    printf(L"[wboot] config cmdline = %-s\r\n", config->cmdline);
+    printf(
+        L"[wboot] config mode = %ux%u, format=%d, depth=%u\r\n", config->mode_width,
+        config->mode_height, (INTN)config->mode_format, config->mode_depth
+    );
+
+    printf(L"[wboot] opening kernel file\r\n");
     EFI_FILE_PROTOCOL *kernel_file;
-    EFI_FILE_PROTOCOL *initramfs_file;
-    status = wboot_locate_kernel(&kernel_file, &initramfs_file);
+    status = wboot_open_kernel(config, &kernel_file);
     if (EFI_ERROR(status)) {
         goto exit;
     }
 
-    UINTN file_info_size = sizeof(EFI_FILE_INFO) + (512 * sizeof(CHAR16));
-    EFI_FILE_INFO *file_info = malloc(file_info_size);
-    if (file_info == NULL) {
-        perror(L"[wboot] error allocating pool for file info", status);
-        goto exit;
-    }
-
-    status = kernel_file->GetInfo(
-        kernel_file, &gEfiFileInfoGuid, &file_info_size, file_info
-    );
-    if (EFI_ERROR(status)) {
-        perror(L"[wboot] error getting file info", status);
-        goto exit;
-    }
-
-    printf(L"[wboot] kernel file found: %s\r\n", file_info->FileName);
-    printf(L"[wboot] kernel file size: %u bytes\r\n", file_info->FileSize);
-
-    file_info_size = sizeof(EFI_FILE_INFO) + (512 * sizeof(CHAR16));
-    status = initramfs_file->GetInfo(
-        initramfs_file, &gEfiFileInfoGuid, &file_info_size, file_info
-    );
-    if (EFI_ERROR(status)) {
-        perror(L"[wboot] error getting initramfs file info", status);
-        goto exit;
-    }
-
-    printf(L"[wboot] initramfs file found: %s\r\n", file_info->FileName);
-    printf(L"[wboot] initramfs file size: %u bytes\r\n", file_info->FileSize);
-
+    printf(L"[wboot] reading kernel setup header\r\n");
     setup_header_t header;
     status = wboot_read_setup_header(kernel_file, &header);
     if (EFI_ERROR(status)) {
         goto exit;
     }
 
-    status = BS->FreePool(file_info);
-    if (EFI_ERROR(status)) {
-        perror(L"[wboot] error freeing pool for file info", status);
-        goto exit;
-    }
-
+    printf(L"[wboot] decompressing kernel\r\n");
     VOID *decompressed_kernel;
     UINTN decompressed_kernel_size;
     status = wboot_decompress_kernel(
@@ -73,23 +56,20 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
         goto exit;
     }
 
-    printf(L"[wboot] decompressed kernel size: %u bytes\r\n", decompressed_kernel_size);
-
+    printf(L"[wboot] reading initramfs into memory\r\n");
     VOID *initramfs;
     UINTN initramfs_size;
-    status = wboot_load_initramfs(initramfs_file, &initramfs, &initramfs_size);
+    status = wboot_load_initramfs(config, &initramfs, &initramfs_size);
     if (EFI_ERROR(status)) {
         goto exit;
     }
 
-    printf(L"[wboot] read initramfs into memory at %p\r\n", initramfs);
-
-    printf(L"[wboot] preparing boot params structure\r\n");
+    printf(L"[wboot] preparing boot params\r\n");
     boot_params_t *params = wboot_prepare_bootparams(
-        &header, initramfs, initramfs_size
+        config, &header, initramfs, initramfs_size
     );
     if (params == NULL) {
-        printf(L"[wboot] Error preparing boot params\r\n");
+        printf(L"[wboot] error preparing boot params\r\n");
         goto exit;
     }
 
@@ -97,7 +77,7 @@ EFI_STATUS efi_main(EFI_HANDLE handle, EFI_SYSTEM_TABLE *systemTable) {
     UINT32 e820ext_size = 0;
 
     printf(L"[wboot] setting up graphics\r\n");
-    status = wboot_setup_graphics(params);
+    status = wboot_setup_graphics(config, params);
     if (EFI_ERROR(status)) {
         perror(L"[wboot] error setting up graphics", status);
         goto exit;

@@ -2,7 +2,7 @@
 
 #include "efiglobal.h"
 #include "wboot.h"
-#include "wstdlib.h"
+#include "wstdlib.h" // IWYU pragma: keep
 
 EFI_DEVICE_PATH_TO_TEXT_PROTOCOL *_device_path_to_text;
 EFI_STATUS _get_device_path_to_text() {
@@ -216,8 +216,6 @@ EFI_STATUS wboot_decompress_kernel(
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
     }
 
-    dump_memory_map();
-
     UINTN compressed_kernel_size = header->payload_length;
     VOID *compressed_kernel = malloc(compressed_kernel_size);
     if (compressed_kernel == NULL) {
@@ -363,8 +361,6 @@ EFI_STATUS wboot_decompress_kernel(
         free(compressed_kernel);
         return EFI_INVALID_PARAMETER;
     }
-
-    dump_memory_map();
 
     *decompressed_kernel = decompressed_kernel_ptr;
     *decompressed_kernel_size = decompressed_size;

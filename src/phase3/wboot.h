@@ -1,15 +1,13 @@
 #pragma once
 
 #include "linux.h"
+#include "wboot_config.h"
 #include <efi.h>
 
-// Enumerates SIMPLE_FILE_SYSTEM_PROTOCOL devices and look for `vmlinuz-linux` and
-// `initramfs-linux.img` in the root directory of each one. Returns the first one it
-// finds, or an error if it can't find any.
+// Opens the kernel file specified in the config and returns a pointer to the opened
+// EFI_FILE_PROTOCOL.
 EFI_STATUS
-wboot_locate_kernel(
-    EFI_FILE_PROTOCOL **kernel_file, EFI_FILE_PROTOCOL **initramfs_file
-);
+wboot_open_kernel(const wboot_config_t *config, EFI_FILE_PROTOCOL **kernel_file);
 
 // Reads the kernel header from the given kernel file. The kernel header is
 // located at offset 0x1f1 in the kernel file and contains important information
@@ -30,7 +28,7 @@ EFI_STATUS wboot_decompress_kernel(
 
 // Loads the initramfs into memory and returns a pointer to it and its size.
 EFI_STATUS wboot_load_initramfs(
-    EFI_FILE_PROTOCOL *initramfs_file, VOID **initramfs, UINTN *initramfs_size
+    const wboot_config_t *config, VOID **initramfs, UINTN *initramfs_size
 );
 
 // Allocates and prepares the `boot_params_t` structure to be passed to the
@@ -39,7 +37,8 @@ EFI_STATUS wboot_load_initramfs(
 // and the kernel command line. The caller is responsible for filling in the
 // e820 memory map before jumping to the kernel.
 boot_params_t *wboot_prepare_bootparams(
-    const setup_header_t *header, VOID *initramfs, UINTN initramfs_size
+    const wboot_config_t *config, const setup_header_t *header, VOID *initramfs,
+    UINTN initramfs_size
 );
 
 EFI_STATUS

@@ -117,7 +117,7 @@ static inline VOID _printf_write_pointer(VOID *ptr) {
     }
 }
 
-static inline UINTN strlen8(const CHAR8 *str) {
+UINTN strlen8(const CHAR8 *str) {
     UINTN len = 0;
     while (str[len] != '\0') {
         len++;
@@ -278,6 +278,17 @@ INTN strcmp(const CHAR16 *str1, const CHAR16 *str2) {
     return (INTN)(str1[i]) - str2[i];
 }
 
+INTN strcmp8(const CHAR8 *str1, const CHAR8 *str2) {
+    UINTN i = 0;
+    while (str1[i] != '\0' && str2[i] != '\0') {
+        if (str1[i] != str2[i]) {
+            return (INTN)(str1[i]) - str2[i];
+        }
+        i++;
+    }
+    return (INTN)(str1[i]) - str2[i];
+}
+
 INTN strncmp(const CHAR16 *str1, const CHAR16 *str2, UINTN n) {
     UINTN i = 0;
     while (i < n && str1[i] != L'\0' && str2[i] != L'\0') {
@@ -311,69 +322,6 @@ static const CHAR16 *efi_memory_type_to_string(UINT32 type) {
         case EfiPersistentMemory: return L"Persistent  ";
         default: return L"Unknown     ";
     }
-}
-
-VOID dump_memory_map() {
-#ifdef DEBUG
-    UINTN memory_map_size = 0;
-    EFI_MEMORY_DESCRIPTOR *memory_map = NULL;
-    UINTN map_key;
-    UINTN descriptor_size;
-    UINT32 descriptor_version;
-
-    EFI_STATUS status = BS->GetMemoryMap(
-        &memory_map_size, memory_map, &map_key, &descriptor_size, &descriptor_version
-    );
-    if (status != EFI_BUFFER_TOO_SMALL) {
-        perror(L"Failed to get memory map size", status);
-        return;
-    }
-
-    // Add extra space to avoid edge-cases where memory allocations change the map size
-    memory_map_size += descriptor_size * 2;
-    memory_map = (EFI_MEMORY_DESCRIPTOR *)malloc(memory_map_size);
-    if (memory_map == NULL) {
-        printf(L"Failed to allocate memory for memory map\r\n");
-        return;
-    }
-
-    status = BS->GetMemoryMap(
-        &memory_map_size, memory_map, &map_key, &descriptor_size, &descriptor_version
-    );
-    if (EFI_ERROR(status)) {
-        perror(L"Failed to get memory map", status);
-        free(memory_map);
-        return;
-    }
-
-    printf(L"EFI Memory Map:\r\n");
-    printf(L"Type               PhysicalStart         PhysicalEnd          Pages\r\n");
-
-    UINTN num_entries = memory_map_size / descriptor_size;
-    EFI_MEMORY_DESCRIPTOR *desc = memory_map;
-    UINTN last_physical_end = 0;
-
-    for (UINTN i = 0; i < num_entries; i++) {
-        UINTN empty_space = desc->PhysicalStart - last_physical_end;
-        if (empty_space > 0) {
-            printf(
-                L"                   %p    %p   %u pages\r\n", last_physical_end,
-                desc->PhysicalStart, empty_space / EFI_PAGE_SIZE
-            );
-        }
-        UINTN physical_end = desc->PhysicalStart +
-                             (desc->NumberOfPages * EFI_PAGE_SIZE);
-        printf(
-            L"[%x] %s   %p    %p   %u pages\r\n", desc->Type,
-            efi_memory_type_to_string(desc->Type), (UINTN)desc->PhysicalStart,
-            physical_end, (UINTN)desc->NumberOfPages
-        );
-        last_physical_end = physical_end;
-        desc = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)desc + descriptor_size);
-    }
-
-    free(memory_map);
-#endif
 }
 
 void *malloc(size_t size) {
@@ -438,4 +386,86 @@ void *memmove(void *dest, const void *src, size_t n) {
         }
     }
     return dest;
+}
+
+CHAR8 *strchr(const CHAR8 *str, CHAR8 c) {
+    while (*str) {
+        if (*str == c) {
+            return (CHAR8 *)str;
+        }
+        str++;
+    }
+    return NULL;
+}
+
+CHAR8 *strtok_r(CHAR8 *str, const CHAR8 *delim, CHAR8 **saveptr) {
+    if (str) {
+        *saveptr = str;
+    }
+    if (*saveptr == NULL) {
+        return NULL;
+    }
+
+    // Skip leading delimiters
+    while (**saveptr && strchr(delim, **saveptr)) {
+        (*saveptr)++;
+    }
+    if (**saveptr == '\0') {
+        *saveptr = NULL;
+        return NULL;
+    }
+
+    CHAR8 *token_start = *saveptr;
+
+    // Find the end of the token
+    while (**saveptr && !strchr(delim, **saveptr)) {
+        (*saveptr)++;
+    }
+    if (**saveptr) {
+        **saveptr = '\0';
+        (*saveptr)++;
+    } else {
+        *saveptr = NULL;
+    }
+
+    return token_start;
+}
+
+UINTN strtoul(const CHAR8 *str, CHAR8 **endptr, int base) {
+    UINTN result = 0;
+    while (*str) {
+        CHAR8 c = *str;
+        int digit;
+        if (c >= '0' && c <= '9') {
+            digit = c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            digit = c - 'a' + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            digit = c - 'A' + 10;
+        } else {
+            break;
+        }
+        if (digit >= base) {
+            break;
+        }
+        result = (result * base) + digit;
+        str++;
+    }
+    if (endptr) {
+        *endptr = (CHAR8 *)str;
+    }
+    return result;
+}
+
+CHAR8 *strdup8(const CHAR8 *src) {
+    UINTN len = strlen8(src);
+    CHAR8 *dst = malloc(len + 1);
+    if (dst == NULL) {
+        return NULL;
+    }
+
+    for (UINTN i = 0; i <= len; i++) {
+        dst[i] = src[i];
+    }
+    return dst;
 }
