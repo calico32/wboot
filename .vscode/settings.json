@@ -13,5 +13,8 @@
         "vendor/gnu-efi/**/*": true,
         "vendor/edk2/**/*": true,
         "vendor/linux/**/*": true
-    }
+    },
+    "tinymist.fontPaths": ["${workspaceFolder}/presentation/fonts"],
+    "tinymist.formatterIndentSize": 4,
+    "tinymist.systemFonts": false
 }
