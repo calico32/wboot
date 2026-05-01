@@ -24,7 +24,7 @@ LDFLAGS := -target x86_64-unknown-windows \
 	-Wl,-subsystem:efi_application \
 	-fuse-ld=lld-link
 
-TARGET := phase3
+TARGET ?= phase3
 
 %/BOOTX64.EFI: export PKG_CONFIG_PATH := $(PWD)/vendor/lib/pkgconfig
 %/BOOTX64.EFI:
@@ -139,11 +139,11 @@ QEMUFLAGS := -machine q35,accel=kvm:tcg,kernel-irqchip=on \
 	-serial stdio
 
 run: src/$(TARGET)/BOOTX64.EFI
-	sudo mkdir -p $(ESP_DIR)/EFI/BOOT
-	sudo cp src/$(TARGET)/BOOTX64.EFI $(ESP_DIR)/EFI/BOOT/BOOTX64.EFI
-	sudo cp wboot.conf $(ESP_DIR)
+	@sudo mkdir -p $(ESP_DIR)/EFI/BOOT
+	@sudo cp src/$(TARGET)/BOOTX64.EFI $(ESP_DIR)/EFI/BOOT/BOOTX64.EFI
+	@sudo cp wboot.conf $(ESP_DIR)
 # wait for the file to be fully written before starting QEMU, otherwise OVMF might try to read it before it's done writing and fail to boot
-	sync
+	@sync
 	@truncate -s 0 $(UEFI_DEBUG_LOG)
 	@qemu-system-x86_64 $(QEMUFLAGS)
 
