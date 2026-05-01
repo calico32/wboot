@@ -1,3 +1,7 @@
+// The majority of this file is based on the Linux kernel's EFI stub
+// implementation. No need to reinvent the wheel for setting up graphics mode
+// and EDID info, we can just copy what the kernel does.
+
 #include "wboot_graphics.h"
 #include "efidef.h"
 #include "efiglobal.h"
@@ -236,11 +240,6 @@ static UINT8 match_res(
     if (pf == PixelBltOnly || pf >= PixelFormatMax) {
         return 0;
     }
-
-    // printf(
-    //     L"Mode %u: Resolution %ux%u, PixelFormat %u, Depth %u\n", mode,
-    //     info->HorizontalResolution, info->VerticalResolution, pf, pixel_bpp(pf, pi)
-    // );
 
     return config->mode_width == info->HorizontalResolution &&
            config->mode_height == info->VerticalResolution &&
